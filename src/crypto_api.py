@@ -2,6 +2,7 @@ import requests
 
 from transform import transform_crypto_data
 from save_data import save_crypto_data
+from logger_config import logger
 
 
 def get_crypto_data():
@@ -17,14 +18,19 @@ def get_crypto_data():
     response = requests.get(url, params=parameters, timeout=10)
     response.raise_for_status()
 
-    crypto_data = response.json()
-
-    return crypto_data
+    return response.json()
 
 
 if __name__ == "__main__":
-    crypto_data = get_crypto_data()
+    try:
+        logger.info("Crypto pipeline started.")
 
-    cleaned_data = transform_crypto_data(crypto_data)
+        crypto_data = get_crypto_data()
+        cleaned_data = transform_crypto_data(crypto_data)
+        save_crypto_data(cleaned_data)
 
-    save_crypto_data(cleaned_data)
+        logger.info("Crypto pipeline completed successfully.")
+
+    except Exception as error:
+        logger.exception(f"Crypto pipeline failed: {error}")
+        print(f"Pipeline failed: {error}")

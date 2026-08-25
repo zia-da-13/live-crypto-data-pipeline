@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-print("DB_PASSWORD loaded:", bool(os.getenv("DB_PASSWORD")))
 
 
 def get_database_connection():
