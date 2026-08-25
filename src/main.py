@@ -1,42 +1,117 @@
-import time
+# ============================================
+# Market Comparison
+# ============================================
 
-from crypto_api import get_crypto_data
-from transform import transform_crypto_data
-from save_data import save_crypto_data
-from logger_config import logger
+st.divider()
 
+st.subheader("🌎 Market Comparison")
 
-def run_pipeline():
-    try:
-        logger.info("Crypto pipeline started.")
-
-        crypto_data = get_crypto_data()
-        cleaned_data = transform_crypto_data(crypto_data)
-        save_crypto_data(cleaned_data)
-
-        logger.info("Crypto pipeline completed successfully.")
-
-    except Exception as error:
-        logger.exception(f"Crypto pipeline failed: {error}")
-        print(f"Pipeline failed: {error}")
+st.write(
+    "Compare Bitcoin, Ethereum, and Solana across price performance, "
+    "market capitalization, trading volume, and 24-hour movement."
+)
 
 
-def main():
-    print("Live crypto pipeline started.")
+# ============================================
+# Normalize Price Performance
+# ============================================
 
-    try:
-        while True:
-            print("\nRunning crypto pipeline...")
+comparison_data = historical_data.copy()
 
-            run_pipeline()
+comparison_data = comparison_data.sort_values(
+    ["coin_id", "collected_at"]
+)
 
-            print("Waiting 5 minutes...")
-            time.sleep(300)
-
-    except KeyboardInterrupt:
-        print("\nCrypto pipeline stopped by user.")
-        logger.info("Crypto pipeline stopped by user.")
+comparison_data["normalized_price"] = (
+    comparison_data.groupby("coin_id")["current_price"]
+    .transform(lambda prices: (prices / prices.iloc[0]) * 100)
+)
 
 
-if __name__ == "__main__":
-    main()
+normalized_chart = comparison_data.pivot_table(
+    index="collected_at",
+    columns="name",
+    values="normalized_price"
+)
+
+
+st.subheader("📈 Relative Price Performance")
+
+st.caption(
+    "Each cryptocurrency starts at 100 so their performance "
+    "can be compared on the same scale."
+)
+
+st.line_chart(
+    normalized_chart,
+    use_container_width=True
+)
+
+
+# ============================================
+# Market Comparison Charts
+# ============================================
+
+comparison_column1, comparison_column2 = st.columns(2)
+
+
+# --------------------------------------------
+# Market Capitalization
+# --------------------------------------------
+
+with comparison_column1:
+
+    st.subheader("🏦 Market Capitalization")
+
+    market_cap_comparison = latest_data[
+        [
+            "name",
+            "market_cap"
+        ]
+    ].set_index("name")
+
+    st.bar_chart(
+        market_cap_comparison,
+        use_container_width=True
+    )
+
+
+# --------------------------------------------
+# Trading Volume
+# --------------------------------------------
+
+with comparison_column2:
+
+    st.subheader("📊 24H Trading Volume")
+
+    volume_comparison = latest_data[
+        [
+            "name",
+            "total_volume"
+        ]
+    ].set_index("name")
+
+    st.bar_chart(
+        volume_comparison,
+        use_container_width=True
+    )
+
+
+# ============================================
+# Price Change Comparison
+# ============================================
+
+st.subheader("⚡ 24-Hour Price Change")
+
+price_change_comparison = latest_data[
+    [
+        "name",
+        "price_change_percentage_24h"
+    ]
+].set_index("name")
+
+
+st.bar_chart(
+    price_change_comparison,
+    use_container_width=True
+)
