@@ -1,27 +1,62 @@
 import os
-import pandas as pd
 from datetime import datetime, timezone
 
+import pandas as pd
+
+from config import CSV_FILE_PATH
 from database_service import get_database_connection
 
 
 def save_crypto_data(crypto_data):
     data_frame = pd.DataFrame(crypto_data)
 
+    # Add pipeline collection timestamp
     data_frame["collected_at"] = datetime.now(timezone.utc)
 
-    os.makedirs("data", exist_ok=True)
+    # Make sure the data folder exists
+    data_directory = os.path.dirname(CSV_FILE_PATH)
 
-    file_path = "data/crypto_market_data.csv"
+    if data_directory:
+        os.makedirs(
+            data_directory,
+            exist_ok=True
+        )
 
-    file_exists = os.path.exists(file_path)
+    # ============================================
+    # Save to CSV without duplicates
+    # ============================================
 
-    data_frame.to_csv(
-        file_path,
-        mode="a",
-        header=not file_exists,
-        index=False
-    )
+    if os.path.exists(CSV_FILE_PATH):
+
+        existing_data = pd.read_csv(
+            CSV_FILE_PATH
+        )
+
+        combined_data = pd.concat(
+            [existing_data, data_frame],
+            ignore_index=True
+        )
+
+        combined_data = combined_data.drop_duplicates(
+            subset=["id", "last_updated"],
+            keep="first"
+        )
+
+        combined_data.to_csv(
+            CSV_FILE_PATH,
+            index=False
+        )
+
+    else:
+
+        data_frame.to_csv(
+            CSV_FILE_PATH,
+            index=False
+        )
+
+    # ============================================
+    # Save to PostgreSQL
+    # ============================================
 
     save_to_database(data_frame)
 
@@ -33,7 +68,9 @@ def save_to_database(data_frame):
 
     with connection:
         with connection.cursor() as cursor:
+
             for _, row in data_frame.iterrows():
+
                 cursor.execute(
                     """
                     INSERT INTO crypto_market_data (
@@ -53,6 +90,8 @@ def save_to_database(data_frame):
                         %s, %s, %s, %s, %s,
                         %s, %s, %s, %s, %s, %s
                     )
+                    ON CONFLICT (coin_id, last_updated)
+                    DO NOTHING;
                     """,
                     (
                         row["id"],
@@ -63,7 +102,9 @@ def save_to_database(data_frame):
                         row["total_volume"],
                         row["high_24h"],
                         row["low_24h"],
-                        row["price_change_percentage_24h"],
+                        row[
+                            "price_change_percentage_24h"
+                        ],
                         row["last_updated"],
                         row["collected_at"]
                     )
