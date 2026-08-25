@@ -17,3 +17,4 @@ logs/
 # Operating system files
 .DS_Store
 Thumbs.db
+data/crypto_market_data.csv
